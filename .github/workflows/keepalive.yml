@@ -1,0 +1,39 @@
+name: Mantener despierta la base de datos
+
+# Supabase gratis pausa el proyecto tras una semana sin actividad y GitHub
+# desactiva las tareas programadas tras 60 días sin movimiento en el repositorio.
+# Esta tarea evita las dos cosas.
+on:
+  schedule:
+    - cron: '17 6 */3 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  despertar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Avisar a Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          curl --fail --silent --show-error -X POST \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+            "$SUPABASE_URL/rest/v1/rpc/ping"
+      - name: Dejar movimiento en el repositorio una vez al mes
+        run: |
+          month="$(date +%Y-%m)"
+          if [ "$(cat .keepalive 2>/dev/null)" != "$month" ]; then
+            echo "$month" > .keepalive
+            git config user.name "el-estuche"
+            git config user.email "el-estuche@users.noreply.github.com"
+            git add .keepalive
+            git commit -m "Mantener activo el repositorio"
+            git push
+          fi
